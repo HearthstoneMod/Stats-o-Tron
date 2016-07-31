@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using Newtonsoft.Json;
 using Discord;
@@ -131,13 +132,6 @@ namespace Stats_o_Tron
             string fullUser = args.User.ToString();
             Channel channel = args.Channel;
 
-            foreach (string key in Channels.Keys)
-            {
-                Console.WriteLine(key);
-            }
-
-            Console.WriteLine(Channels.Count);
-
             Channels[channel.Name]++;
 
             if (Users.ContainsKey(fullUser))
@@ -201,6 +195,10 @@ namespace Stats_o_Tron
 
                             case "!serverstats":
                                 ShowServerStatsCommand(channel);
+                                break;
+
+                            case "!usertop":
+                                ShowUserTopCommand(channel);
                                 break;
 
                             case "!recount":
@@ -303,6 +301,8 @@ namespace Stats_o_Tron
         {
             await channel.SendMessage("**Updating channel stats...**");
 
+            await Task.Delay(1000);
+
             Users.Clear();
             Channels.Clear();
             
@@ -344,7 +344,7 @@ namespace Stats_o_Tron
             {
                 if (message.User != null)
                 {
-                    string userName = message.User.Name;
+                    string userName = message.User.ToString();
 
                     if (Users.ContainsKey(userName))
                     {
@@ -356,6 +356,22 @@ namespace Stats_o_Tron
                     }
                 }
             }
+        }
+
+        public void ShowUserTopCommand(Channel channel)
+        {
+            channel.SendMessage("**Showing user top 5 :**");
+
+            string channelList = "";
+
+            Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(5).ToDictionary(u => u.Key, u => u.Value);
+
+            foreach (KeyValuePair<string, int> pair in top)
+            {
+                channelList += "· " + pair.Key + " -> " + pair.Value + " messages\n";
+            }
+
+            channel.SendMessage("```" + channelList + "```");
         }
 
         public void ShowServerStatsCommand(Channel channel)
