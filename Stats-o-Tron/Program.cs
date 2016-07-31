@@ -132,7 +132,10 @@ namespace Stats_o_Tron
             string fullUser = args.User.ToString();
             Channel channel = args.Channel;
 
-            Channels[channel.Name]++;
+            if (Channels.ContainsKey(channel.Name))
+            {
+                Channels[channel.Name]++;
+            }
 
             if (Users.ContainsKey(fullUser))
             {
