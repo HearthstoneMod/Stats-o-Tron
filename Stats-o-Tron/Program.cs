@@ -1,9 +1,8 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Linq;
 using Newtonsoft.Json;
 using Discord;
 
@@ -156,17 +155,19 @@ namespace Stats_o_Tron
                     {
                         string[] commands = fullText.Split();
                         bool isAdmin = Admins.Contains(fullUser);
-
+                        
                         switch (commands[0].ToLower())
                         {
                             case "!hello":
                                 if (isAdmin)
                                 {
+                                    LogAdminCommand(channel, commands[0], fullUser);
                                     channel.SendTTSMessage("***HELLO! HELLO! HELLO!***");
                                 }
                                 break;
 
                             case "!help":
+                                LogNormalCommand(channel, commands[0], fullUser);
                                 channel.SendMessage("**· Normal Commands :**\n " +
                                                     "```!hello - HELLO! (admin only)\n" +
                                                     "!help - Shows this message```\n" +
@@ -185,6 +186,7 @@ namespace Stats_o_Tron
                             case "!addadmin":
                                 if (commands.Length > 1 && isAdmin)
                                 {
+                                    LogAdminCommand(channel, commands[0], fullUser);
                                     AddAdminCommand(channel, commands[1]);
                                 }
                                 break;
@@ -192,25 +194,30 @@ namespace Stats_o_Tron
                             case "!removeadmin":
                                 if (commands.Length > 1 && isAdmin)
                                 {
+                                    LogAdminCommand(channel, commands[0], fullUser);
                                     RemoveAdminCommand(channel, commands[1]);
                                 }
                                 break;
 
                             case "!adminlist":
+                                LogNormalCommand(channel, commands[0], fullUser);
                                 ShowAdminListCommand(channel);
                                 break;
 
                             case "!serverstats":
+                                LogNormalCommand(channel, commands[0], fullUser);
                                 ShowServerStatsCommand(channel);
                                 break;
 
                             case "!usertop":
+                                LogNormalCommand(channel, commands[0], fullUser);
                                 ShowUserTopCommand(channel);
                                 break;
 
                             case "!recount":
                                 if (isAdmin)
                                 {
+                                    LogAdminCommand(channel, commands[0], fullUser);
                                     RecountCommand(channel);
                                 }
                                 break;
@@ -218,7 +225,16 @@ namespace Stats_o_Tron
                             case "!lastseen":
                                 if (commands.Length > 1 && isAdmin)
                                 {
+                                    LogAdminCommand(channel, commands[0], fullUser);
                                     LastSeenCommand(channel, commands[1]);
+                                }
+                                break;
+
+                            case "!save":
+                                if (isAdmin)
+                                {
+                                    LogAdminCommand(channel, commands[0], fullUser);
+                                    SaveCommand(channel);
                                 }
                                 break;
                         }
@@ -423,6 +439,14 @@ namespace Stats_o_Tron
             }
         }
 
+        private void SaveCommand(Channel channel)
+        {
+            SaveChannelStatsFile();
+            SaveUserStatsFile();
+
+            channel.SendMessage("**All files saved**");
+        }
+
         private void SaveChannelStatsFile()
         {
             string channelString = JsonConvert.SerializeObject(Channels);
@@ -435,6 +459,24 @@ namespace Stats_o_Tron
             string userString = JsonConvert.SerializeObject(Users);
 
             File.WriteAllText(AppDirectory + "users.list", userString);
+        }
+
+        #endregion
+
+        #region Log Methods
+
+        public void LogNormalCommand(Channel channel, string cmd, string user)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine(cmd + " requested in #" + channel.Name + " by " + user);
+            Console.ForegroundColor = ConsoleColor.White;
+        }
+
+        public void LogAdminCommand(Channel channel, string cmd, string user)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(cmd + " requested in #" + channel.Name + " by " + user);
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         #endregion
