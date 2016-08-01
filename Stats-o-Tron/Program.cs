@@ -249,16 +249,14 @@ namespace Stats_o_Tron
         {
             if (Admins.Count > 0)
             {
-                channel.SendMessage("**Showing current admin list **(" + DateTime.Today.ToShortDateString() + ")** :**");
-
-                string adminList = "```";
+                string adminList = "**Showing current admin list **(" + DateTime.Today.ToShortDateString() + ")** :**\n\n```";
 
                 for (int i = 0; i < Admins.Count; i++)
                 {
                     adminList += "· " + Admins[i] + "\n";
                 }
 
-                channel.SendMessage(adminList.Remove(adminList.Length - 3) + " ```");
+                channel.SendMessage(adminList.Remove(adminList.Length - 3) + "```");
             }
             else
             {
