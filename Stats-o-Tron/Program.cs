@@ -174,7 +174,13 @@ namespace Stats_o_Tron
                                                     "**· Admin Commands: **\n" +
                                                     "```!addadmin <fullname> - Adds an admin to the admin list (admin only)\n" +
                                                     "!removeadmin <fullname> -Removes an admin from the admin list (admin only)\n" +
-                                                    "!adminlist - Show the full list of admins```\n");
+                                                    "!adminlist - Show the full list of admins```\n" +
+
+                                                    "**· Stats Commands: **\n" +
+                                                    "```!serverstats - Shows the stats of each channel\n" +
+                                                    "!usertop - Shows the top 10 users\n" +
+                                                    "!recount - Force message recount (admin only)\n" +
+                                                    "!lastseen <fullname> - Check last activity of someone (admin only)```\n");
                                 break;
                             case "!addadmin":
                                 if (commands.Length > 1 && isAdmin)
@@ -206,6 +212,13 @@ namespace Stats_o_Tron
                                 if (isAdmin)
                                 {
                                     RecountCommand(channel);
+                                }
+                                break;
+
+                            case "!lastseen":
+                                if (commands.Length > 1 && isAdmin)
+                                {
+                                    LastSeenCommand(channel, commands[1]);
                                 }
                                 break;
                         }
@@ -391,6 +404,23 @@ namespace Stats_o_Tron
 
             channel.SendMessage("**Showing server stats :**\n```" + channelList + "```");
         }
+
+        private void LastSeenCommand(Channel channel, string fullUser)
+        {
+            User user = Server.FindUsers(fullUser).FirstOrDefault();
+
+            if (user != null)
+            {
+                if (user.LastOnlineAt != null && user.LastActivityAt != null)
+                {
+                    channel.SendMessage(fullUser + " was last seen online at " + user.LastOnlineAt + " and his last activiy was at " + user.LastActivityAt);
+                }
+                channel.SendMessage(fullUser + " activity was not found");
+            }
+            else
+            {
+                channel.SendMessage(fullUser + " was not found");
+            }
         }
 
         private void SaveChannelStatsFile()
