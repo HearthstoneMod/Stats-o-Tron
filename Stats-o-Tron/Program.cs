@@ -256,7 +256,7 @@ namespace Stats_o_Tron
                     adminList += "· " + Admins[i] + "\n";
                 }
 
-                channel.SendMessage(adminList.Remove(adminList.Length - 3) + "```");
+                channel.SendMessage(adminList + "```");
             }
             else
             {
@@ -337,6 +337,7 @@ namespace Stats_o_Tron
             foreach (Channel serverChannel in Server.TextChannels)
             {
                 await DownloadChannelInfo(serverChannel);
+                await channel.SendMessage("**Updated** #" + serverChannel + "** channel info **");
             }
 
             ShowServerStatsCommand(channel);
@@ -427,9 +428,12 @@ namespace Stats_o_Tron
             {
                 if (user.LastOnlineAt != null && user.LastActivityAt != null)
                 {
-                    channel.SendMessage(fullUser + " was last seen online at " + user.LastOnlineAt + " and his last activiy was at " + user.LastActivityAt);
+                    channel.SendMessage(fullUser + " was last seen online at " + user.LastOnlineAt + " and his last activity was at " + user.LastActivityAt);
                 }
-                channel.SendMessage(fullUser + " activity was not found");
+                else
+                {
+                    channel.SendMessage(fullUser + " activity was not found");
+                }
             }
             else
             {
@@ -442,7 +446,7 @@ namespace Stats_o_Tron
             SaveChannelStatsFile();
             SaveUserStatsFile();
 
-            channel.SendMessage("**All files saved**");
+            channel.SendMessage("**Channel and User data saved**");
         }
 
         private void SaveChannelStatsFile()
