@@ -167,8 +167,6 @@ namespace Stats_o_Tron
                                 break;
 
                             case "!help":
-                                channel.SendMessage("**List of commands available :** \n");
-
                                 channel.SendMessage("**· Normal Commands :**\n " +
                                                     "```!hello - HELLO! (admin only)\n" +
                                                     "!help - Shows this message```\n" +
@@ -302,7 +300,7 @@ namespace Stats_o_Tron
 
         public async void RecountCommand(Channel channel)
         {
-            await channel.SendMessage("**Updating channel stats...**");
+            await channel.SendMessage("**Updating server stats...**");
 
             await Task.Delay(1000);
 
@@ -363,11 +361,11 @@ namespace Stats_o_Tron
 
         public void ShowUserTopCommand(Channel channel)
         {
-            channel.SendMessage("**Showing user top 5 :**");
+            channel.SendMessage("**Showing user top 10 :**");
 
             string channelList = "";
 
-            Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(5).ToDictionary(u => u.Key, u => u.Value);
+            Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(10).ToDictionary(u => u.Key, u => u.Value);
 
             foreach (KeyValuePair<string, int> pair in top)
             {
@@ -379,16 +377,20 @@ namespace Stats_o_Tron
 
         public void ShowServerStatsCommand(Channel channel)
         {
-            channel.SendMessage("**Showing server stats :**");
-            
             string channelList = "";
+
+            int totalMessages = 0;
 
             foreach (KeyValuePair<string, int> keyValue in Channels)
             {
+                totalMessages += keyValue.Value;
                 channelList += "· " + keyValue.Key + " -> " + keyValue.Value + " messages\n";
             }
 
-            channel.SendMessage("```" + channelList + "```");
+            channelList += "\n TOTAL : " + totalMessages;
+
+            channel.SendMessage("**Showing server stats :**\n```" + channelList + "```");
+        }
         }
 
         private void SaveChannelStatsFile()
