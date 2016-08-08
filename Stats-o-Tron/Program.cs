@@ -52,6 +52,8 @@ namespace Stats_o_Tron
 
                 await Task.Delay(1000);
 
+                Client.SetGame("Modstone");
+
                 Server = Client.Servers.First(s => s.Id == ServerID);
 
                 Console.WriteLine("Loaded Stats-o-Tron bot to server " + Server.Name);
