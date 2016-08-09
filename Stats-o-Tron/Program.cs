@@ -56,7 +56,7 @@ namespace Stats_o_Tron
 
                 Server = Client.Servers.First(s => s.Id == ServerID);
 
-                Console.WriteLine("Loaded Stats-o-Tron bot to server " + Server.Name);
+                LogText("Loaded Stats-o-Tron bot to server " + Server.Name);
             });
         }
 
@@ -68,22 +68,22 @@ namespace Stats_o_Tron
             {
                 string[] admins = File.ReadAllText(AppDirectory + "admins.list").Split(new string[1] { ";" }, StringSplitOptions.RemoveEmptyEntries);
 
-                Console.WriteLine("Loading admins (" + admins.Length + ") :");
+                LogText("Loading admins (" + admins.Length + ") :");
 
                 foreach (string admin in admins)
                 {
                     Admins.Add(admin);
-                    Console.WriteLine("· " + admin);
+                    LogText("- " + admin);
                 }
             }
             else
             {
                 File.Create(AppDirectory + "admins.list").Close();
 
-                Console.WriteLine("Created empty admin list");
+                LogText("Created empty admin list");
             }
 
-            Console.WriteLine(" ");
+            LogText(" ");
 
             // User files
 
@@ -93,7 +93,7 @@ namespace Stats_o_Tron
 
                 Users = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
 
-                Console.WriteLine("Loaded " + Users.Count + " users");
+                LogText("Loaded " + Users.Count + " users");
             }
             else
             {
@@ -101,10 +101,10 @@ namespace Stats_o_Tron
 
                 Users = new Dictionary<string, int>();
 
-                Console.WriteLine("Created empty user list");
+                LogText("Created empty user list");
             }
 
-            Console.WriteLine(" ");
+            LogText(" ");
 
             // Channel files
 
@@ -114,7 +114,7 @@ namespace Stats_o_Tron
 
                 Channels = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
 
-                Console.WriteLine("Loaded " + Channels.Count + " channels");
+                LogText("Loaded " + Channels.Count + " channels");
             }
             else
             {
@@ -122,10 +122,10 @@ namespace Stats_o_Tron
 
                 Channels = new Dictionary<string, int>();
 
-                Console.WriteLine("Created empty channel list");
+                LogText("Created empty channel list");
             }
 
-            Console.WriteLine(" ");
+            LogText(" ");
         }
 
         private void ProcessMessage(MessageEventArgs args)
@@ -469,18 +469,19 @@ namespace Stats_o_Tron
 
         #region Log Methods
 
+        public void LogText(string text)
+        {
+            Console.WriteLine("<white>" + text + "</white>");
+        }
+
         public void LogNormalCommand(Channel channel, string cmd, string user)
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(cmd + " requested in #" + channel.Name + " by " + user);
-            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("<cyan>" + cmd + " requested in #" + channel.Name + " by " + user + "</cyan>");
         }
 
         public void LogAdminCommand(Channel channel, string cmd, string user)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(cmd + " requested in #" + channel.Name + " by " + user);
-            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("<green>" + cmd + " requested in #" + channel.Name + " by " + user + "</green>");
         }
 
         #endregion
