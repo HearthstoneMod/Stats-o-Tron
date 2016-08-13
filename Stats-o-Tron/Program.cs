@@ -63,19 +63,16 @@ namespace Stats_o_Tron
 
         private void LoadFiles()
         {
-            // Admin files
-
             if (File.Exists(AppDirectory + "admins.list"))
             {
                 string[] admins = File.ReadAllText(AppDirectory + "admins.list").Split(new string[1] { ";" }, StringSplitOptions.RemoveEmptyEntries);
 
-                LogText("Loading admins (" + admins.Length + ") :");
-
                 foreach (string admin in admins)
                 {
                     Admins.Add(admin);
-                    LogText("- " + admin);
                 }
+
+                LogText("Loaded " + admins.Length + " admins");
             }
             else
             {
@@ -83,8 +80,6 @@ namespace Stats_o_Tron
 
                 LogText("Created empty admin list");
             }
-
-            LogText(" ");
 
             // User files
 
@@ -175,22 +170,29 @@ namespace Stats_o_Tron
                                 break;
 
                             case "!help":
-                                LogNormalCommand(channel, commands[0], fullUser);
-                                channel.SendMessage("**· Normal Commands :**\n " +
-                                                    "```!hello - HELLO! (admin only)\n" +
-                                                    "!ping - Check bot status\n" +
-                                                    "!help - Shows this message```\n" +
+                                if (commands.Length == 1)
+                                {
+                                    channel.SendMessage("Use `!help stats` to get the full list of Stats-o-Tron commands");
+                                }
+                                else if (commands[1].ToLower() == "stats")
+                                {
+                                    LogNormalCommand(channel, commands[0], fullUser);
+                                    channel.SendMessage("**· Normal Commands :**\n " +
+                                                        "```!hello - HELLO! (admin only)\n" +
+                                                        "!ping - Checks bot status\n" +
+                                                        "!help - Shows this message```\n" +
 
-                                                    "**· Admin Commands: **\n" +
-                                                    "```!addadmin <fullname> - Adds an admin to the admin list (admin only)\n" +
-                                                    "!removeadmin <fullname> -Removes an admin from the admin list (admin only)\n" +
-                                                    "!adminlist - Show the full list of admins```\n" +
+                                                        "**· Admin Commands: **\n" +
+                                                        "```!addadmin <fullname> - Adds an admin to the admin list (admin only)\n" +
+                                                        "!removeadmin <fullname> - Removes an admin from the admin list (admin only)\n" +
+                                                        "!adminlist - Shows the full list of admins```\n" +
 
-                                                    "**· Stats Commands: **\n" +
-                                                    "```!serverstats - Shows the stats of each channel\n" +
-                                                    "!usertop - Shows the top 10 users\n" +
-                                                    "!recount - Force message recount (admin only)\n" +
-                                                    "!lastseen <fullname> - Check last activity of someone (admin only)```\n");
+                                                        "**· Stats Commands: **\n" +
+                                                        "```!serverstats - Shows the stats of each channel\n" +
+                                                        "!usertop - Shows the top 10 users\n" +
+                                                        "!recount - Forces message recount (admin only)\n" +
+                                                        "!lastseen <fullname> - Checks last activity of someone (admin only)```\n");
+                                }
                                 break;
                             case "!addadmin":
                                 if (commands.Length > 1 && isAdmin)
@@ -398,9 +400,7 @@ namespace Stats_o_Tron
 
         public void ShowUserTopCommand(Channel channel)
         {
-            channel.SendMessage("**Showing user top 10 :**");
-
-            string channelList = "";
+            string channelList = "**Showing user top 10 :**\n```";
 
             Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(10).ToDictionary(u => u.Key, u => u.Value);
 
@@ -409,12 +409,12 @@ namespace Stats_o_Tron
                 channelList += "· " + pair.Key + " -> " + pair.Value + " messages\n";
             }
 
-            channel.SendMessage("```" + channelList + "```");
+            channel.SendMessage(channelList + "```");
         }
 
         public void ShowServerStatsCommand(Channel channel)
         {
-            string channelList = "";
+            string channelList = "**Showing server stats :**\n```";
 
             int totalMessages = 0;
 
@@ -426,7 +426,7 @@ namespace Stats_o_Tron
 
             channelList += "\n TOTAL : " + totalMessages;
 
-            channel.SendMessage("**Showing server stats :**\n```" + channelList + "```");
+            channel.SendMessage(channelList + "```");
         }
 
         private void LastSeenCommand(Channel channel, string fullUser)
