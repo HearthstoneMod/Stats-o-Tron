@@ -80,9 +80,7 @@ namespace Stats_o_Tron
 
                 LogText("Created empty admin list");
             }
-
-            // User files
-
+            
             if (File.Exists(AppDirectory + "users.list"))
             {
                 string usersJson = File.ReadAllText(AppDirectory + "users.list");
@@ -99,10 +97,6 @@ namespace Stats_o_Tron
 
                 LogText("Created empty user list");
             }
-
-            LogText(" ");
-
-            // Channel files
 
             if (File.Exists(AppDirectory + "channels.list"))
             {
