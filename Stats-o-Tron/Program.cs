@@ -49,7 +49,7 @@ namespace Stats_o_Tron
 
             Client.ExecuteAndWait(async () =>
             {
-                await Client.Connect("MjA5MjY1NzQ2MzMxNTY2MDgw.Cn9taQ.MixAdiHpSVNX7N-L69MHodjOM3M");
+                await Client.Connect("Bot MjA5MjY1NzQ2MzMxNTY2MDgw.Cn9taQ.MixAdiHpSVNX7N-L69MHodjOM3M");
 
                 await Task.Delay(1000);
 
