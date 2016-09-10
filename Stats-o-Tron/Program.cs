@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
+using System.Threading;
 using Newtonsoft.Json;
 using Discord;
 
@@ -31,8 +32,8 @@ namespace Stats_o_Tron
         private string AppDirectory;
 
         private List<string> Admins = new List<string>();
-        private Dictionary<string, int> Users; 
-        private Dictionary<string, int> Channels;
+        private volatile Dictionary<string, int> Users; 
+        private volatile Dictionary<string, int> Channels;
 
         public void Start()
         {
@@ -184,6 +185,7 @@ namespace Stats_o_Tron
                                                         "**· Stats Commands: **\n" +
                                                         "```!serverstats - Shows the stats of each channel\n" +
                                                         "!usertop - Shows the top 10 users\n" +
+                                                        "!usertop <quantity> - Shows the top x users (admin only)\n" +
                                                         "!recount - Forces message recount (admin only)\n" +
                                                         "!lastseen <fullname> - Checks last activity of someone (admin only)```\n");
                                 }
@@ -352,25 +354,25 @@ namespace Stats_o_Tron
         {
             await channel.SendMessage("**Updating server stats...**");
 
-            await Task.Delay(1000);
-
             Users.Clear();
             Channels.Clear();
             
             foreach (Channel serverChannel in Server.TextChannels)
             {
-                await DownloadChannelInfo(serverChannel);
-                await channel.SendMessage("**Updated** #" + serverChannel + "** channel info **");
+                ParameterizedThreadStart threadStart = new ParameterizedThreadStart(DownloadChannelInfo);
+
+                Thread downloadThread = new Thread(threadStart);
+                downloadThread.Priority = ThreadPriority.Highest;
+                downloadThread.Start(new object[] {serverChannel, channel});
             }
-
-            ShowServerStatsCommand(channel);
-
-            SaveChannelStatsFile();
-            SaveUserStatsFile();
         }
 
-        private async Task DownloadChannelInfo(Channel channel)
+        private async void DownloadChannelInfo(object args)
         {
+            object[] argsArray = (object[]) args;
+            Channel channel = (Channel) argsArray[0];
+            Channel messageChannel = (Channel) argsArray[1];
+
             List<Message> messageList = new List<Message>();
             
             ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
@@ -408,6 +410,8 @@ namespace Stats_o_Tron
                     }
                 }
             }
+
+            await messageChannel.SendMessage("**Updated** #" + channel.Name + "** channel info **");
         }
 
         public void ShowUserTopCommand(Channel channel, int quantity)
@@ -439,6 +443,11 @@ namespace Stats_o_Tron
             channelList += "\n TOTAL : " + totalMessages;
 
             channel.SendMessage(channelList + "```");
+        }
+
+        private void FirstSeenCommand(Channel channel, string fullUser)
+        {
+            
         }
 
         private void LastSeenCommand(Channel channel, string fullUser)
