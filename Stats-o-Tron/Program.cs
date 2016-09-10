@@ -216,7 +216,25 @@ namespace Stats_o_Tron
 
                             case "!usertop":
                                 LogNormalCommand(channel, commands[0], fullUser);
-                                ShowUserTopCommand(channel);
+                                if (commands.Length > 1 && isAdmin)
+                                {
+                                    int quantity;
+
+                                    bool succeeded = int.TryParse(commands[1], out quantity);
+
+                                    if (succeeded)
+                                    {
+                                        ShowUserTopCommand(channel, quantity);
+                                    }
+                                    else
+                                    {
+                                        channel.SendMessage("**ERROR : ** Could not parse " + commands[1]);
+                                    }
+                                }
+                                else
+                                {
+                                    ShowUserTopCommand(channel, 10);
+                                }
                                 break;
 
                             case "!recount":
@@ -392,11 +410,11 @@ namespace Stats_o_Tron
             }
         }
 
-        public void ShowUserTopCommand(Channel channel)
+        public void ShowUserTopCommand(Channel channel, int quantity)
         {
-            string channelList = "**Showing user top 10 :**\n```";
+            string channelList = "**Showing user top " + quantity + " :**\n```";
 
-            Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(10).ToDictionary(u => u.Key, u => u.Value);
+            Dictionary<string, int> top = Users.OrderByDescending(x => x.Value).Take(quantity).ToDictionary(u => u.Key, u => u.Value);
 
             foreach (KeyValuePair<string, int> pair in top)
             {
