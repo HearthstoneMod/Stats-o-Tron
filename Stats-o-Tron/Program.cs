@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Threading;
 using Newtonsoft.Json;
@@ -34,6 +35,9 @@ namespace Stats_o_Tron
         private List<string> Admins = new List<string>();
         private volatile Dictionary<string, int> Users; 
         private volatile Dictionary<string, int> Channels;
+
+        private int RecountCount = 0;
+        private Channel RecountChannel;
 
         public void Start()
         {
@@ -356,6 +360,9 @@ namespace Stats_o_Tron
 
             Users.Clear();
             Channels.Clear();
+
+            RecountCount = 0;
+            RecountChannel = channel;
             
             foreach (Channel serverChannel in Server.TextChannels)
             {
@@ -372,6 +379,9 @@ namespace Stats_o_Tron
             object[] argsArray = (object[]) args;
             Channel channel = (Channel) argsArray[0];
             Channel messageChannel = (Channel) argsArray[1];
+
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
 
             List<Message> messageList = new List<Message>();
             
@@ -411,7 +421,24 @@ namespace Stats_o_Tron
                 }
             }
 
-            await messageChannel.SendMessage("**Updated** #" + channel.Name + "** channel info **");
+            timer.Stop();
+
+            await messageChannel.SendMessage("**Updated** #" + channel.Name + "** channel info in **" + Math.Round(timer.ElapsedMilliseconds / 1000f, 4) + " s");
+
+            RecountCheckpoint();
+        }
+
+        private void RecountCheckpoint()
+        {
+            RecountCount++;
+
+            if (RecountCount == Server.TextChannels.Count())
+            {
+                ShowServerStatsCommand(RecountChannel);
+
+                RecountCount = 0;
+                RecountChannel = null;
+            }
         }
 
         public void ShowUserTopCommand(Channel channel, int quantity)
