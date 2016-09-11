@@ -33,7 +33,8 @@ namespace Stats_o_Tron
         private string AppDirectory;
 
         private List<string> Admins = new List<string>();
-        private volatile Dictionary<string, int> Users; 
+        private volatile Dictionary<string, int> Users;
+        private volatile Dictionary<string, int> UsersFirstSeen; 
         private volatile Dictionary<string, int> Channels;
 
         private int RecountCount = 0;
@@ -49,7 +50,12 @@ namespace Stats_o_Tron
 
             Client.MessageReceived += async (obj, args) =>
             {
-                await Task.Run(() => ProcessMessage(args));
+                await Task.Run(() => ProcessMessageReceived(args));
+            };
+
+            Client.MessageDeleted += async (obj, args) =>
+            {
+                await Task.Run(() => ProcessMessageDeleted(args));
             };
 
             Client.ExecuteAndWait(async () =>
@@ -102,6 +108,23 @@ namespace Stats_o_Tron
 
                 LogText("Created empty user list");
             }
+            
+            if (File.Exists(AppDirectory + "usersfirstseen.list"))
+            {
+                string usersfirstseenJson = File.ReadAllText(AppDirectory + "usersfirstseen.list");
+
+                UsersFirstSeen = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersfirstseenJson);
+
+                LogText("Loaded " + UsersFirstSeen.Count + " usersfirstseen");
+            }
+            else
+            {
+                File.Create(AppDirectory + "usersfirstseen.list").Close();
+
+                UsersFirstSeen = new Dictionary<string, int>();
+
+                LogText("Created empty user list");
+            }
 
             if (File.Exists(AppDirectory + "channels.list"))
             {
@@ -123,7 +146,7 @@ namespace Stats_o_Tron
             LogText(" ");
         }
 
-        private void ProcessMessage(MessageEventArgs args)
+        private void ProcessMessageReceived(MessageEventArgs args)
         {
             string fullUser = args.User.ToString();
             Channel channel = args.Channel;
@@ -243,11 +266,42 @@ namespace Stats_o_Tron
                                 }
                                 break;
 
+                            case "!userfirstseentop":
+                                LogNormalCommand(channel, commands[0], fullUser);
+                                if (commands.Length > 1 && isAdmin)
+                                {
+                                    int quantity;
+
+                                    bool succeeded = int.TryParse(commands[1], out quantity);
+
+                                    if (succeeded)
+                                    {
+                                        ShowUserFirstSeenTopCommand(channel, quantity);
+                                    }
+                                    else
+                                    {
+                                        channel.SendMessage("**ERROR : ** Could not parse " + commands[1]);
+                                    }
+                                }
+                                else
+                                {
+                                    ShowUserFirstSeenTopCommand(channel, 10);
+                                }
+                                break;
+
                             case "!recount":
                                 if (isAdmin)
                                 {
                                     LogAdminCommand(channel, commands[0], fullUser);
                                     RecountCommand(channel);
+                                }
+                                break;
+
+                            case "!firstseen":
+                                if (commands.Length > 1)
+                                {
+                                    LogAdminCommand(channel, commands[0], fullUser);
+                                    FirstSeenCommand(channel, commands[1]);
                                 }
                                 break;
 
@@ -269,6 +323,22 @@ namespace Stats_o_Tron
                         }
                     }
                 }
+            }
+        }
+
+        private void ProcessMessageDeleted(MessageEventArgs args)
+        {
+            string fullUser = args.User.ToString();
+            Channel channel = args.Channel;
+
+            if (Users.ContainsKey(fullUser))
+            {
+                Users[fullUser]--;
+            }
+
+            if (Channels.ContainsKey(channel.Name))
+            {
+                Channels[channel.Name]--;
             }
         }
 
@@ -383,7 +453,7 @@ namespace Stats_o_Tron
             Stopwatch timer = new Stopwatch();
             timer.Start();
 
-            List<Message> messageList = new List<Message>();
+            int messageCount = 0;
             
             ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
             bool isDone = false;
@@ -394,7 +464,29 @@ namespace Stats_o_Tron
                 
                 previousID = downloadedMessages[downloadedMessages.Length - 1].Id;
 
-                messageList = messageList.Concat(downloadedMessages).ToList();
+                foreach (Message message in downloadedMessages)
+                {
+                    if (message.User != null)
+                    {
+                        string userName = message.User.ToString();
+
+                        if (Users.ContainsKey(userName))
+                        {
+                            Users[userName]++;
+                            int lastEpoch = UsersFirstSeen[userName];
+                            int thisEpoch = message.Timestamp.ToEpoch();
+
+                            UsersFirstSeen[userName] = Math.Min(lastEpoch, thisEpoch);
+                        }
+                        else
+                        {
+                            Users.Add(userName, 1);
+                            UsersFirstSeen.Add(userName, message.Timestamp.ToEpoch());
+                        }
+                    }
+                }
+
+                messageCount += downloadedMessages.Length;
 
                 if (downloadedMessages.Length < 100)
                 {
@@ -402,24 +494,7 @@ namespace Stats_o_Tron
                 }
             }
 
-            Channels.Add(channel.Name, messageList.Count);
-
-            foreach (Message message in messageList)
-            {
-                if (message.User != null)
-                {
-                    string userName = message.User.ToString();
-
-                    if (Users.ContainsKey(userName))
-                    {
-                        Users[userName] += 1;
-                    }
-                    else
-                    {
-                        Users.Add(userName, 1);
-                    }
-                }
-            }
+            Channels.Add(channel.Name, messageCount);
 
             timer.Stop();
 
@@ -455,6 +530,20 @@ namespace Stats_o_Tron
             channel.SendMessage(channelList + "```");
         }
 
+        public void ShowUserFirstSeenTopCommand(Channel channel, int quantity)
+        {
+            string channelList = "**Showing user first seen top " + quantity + " :**\n```";
+
+            Dictionary<string, int> top = UsersFirstSeen.OrderBy(x => x.Value).Take(quantity).ToDictionary(u => u.Key, u => u.Value);
+
+            foreach (KeyValuePair<string, int> pair in top)
+            {
+                channelList += "· " + pair.Key + " -> " + pair.Value.FromEpoch().ToString("G") + "\n";
+            }
+
+            channel.SendMessage(channelList + "```");
+        }
+
         public void ShowServerStatsCommand(Channel channel)
         {
             string channelList = "**Showing server stats :**\n```";
@@ -474,7 +563,14 @@ namespace Stats_o_Tron
 
         private void FirstSeenCommand(Channel channel, string fullUser)
         {
-            
+            if (UsersFirstSeen.ContainsKey(fullUser))
+            {
+                channel.SendMessage(fullUser + " was first seen online at " + UsersFirstSeen[fullUser].FromEpoch().ToString("G"));
+            }
+            else
+            {
+                channel.SendMessage(fullUser + " was not found");
+            }
         }
 
         private void LastSeenCommand(Channel channel, string fullUser)
@@ -502,6 +598,7 @@ namespace Stats_o_Tron
         {
             SaveChannelStatsFile();
             SaveUserStatsFile();
+            SaveUserFirstSeenFile();
 
             channel.SendMessage("**Channel and User data saved**");
         }
@@ -518,6 +615,13 @@ namespace Stats_o_Tron
             string userString = JsonConvert.SerializeObject(Users);
 
             File.WriteAllText(AppDirectory + "users.list", userString);
+        }
+
+        private void SaveUserFirstSeenFile()
+        {
+            string userFirstSeenString = JsonConvert.SerializeObject(UsersFirstSeen);
+
+            File.WriteAllText(AppDirectory + "usersfirstseen.list", userFirstSeenString);
         }
 
         #endregion
@@ -540,5 +644,20 @@ namespace Stats_o_Tron
         }
 
         #endregion
+    }
+
+    public static class Util
+    {
+        public static DateTime FromEpoch(this int date)
+        {
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return epoch.AddSeconds(date);
+        }
+
+        public static int ToEpoch(this DateTime date)
+        {
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return Convert.ToInt32((date - epoch).TotalSeconds);
+        }
     }
 }
