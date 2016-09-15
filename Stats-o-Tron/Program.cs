@@ -650,13 +650,13 @@ namespace Stats_o_Tron
     {
         public static DateTime FromEpoch(this int date)
         {
-            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             return epoch.AddSeconds(date);
         }
 
         public static int ToEpoch(this DateTime date)
         {
-            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             return Convert.ToInt32((date - epoch).TotalSeconds);
         }
     }
