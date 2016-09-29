@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Newtonsoft.Json;
 using Discord;
@@ -31,12 +32,17 @@ namespace Stats_o_Tron
         private Server Server;
 
         private string AppDirectory;
-
-        private List<string> Admins = new List<string>();
+        
         private volatile Dictionary<string, int> Users;
-        private volatile Dictionary<string, int> UsersFirstSeen; 
+        private volatile Dictionary<string, int> UsersFirstSeen;
+        private volatile Dictionary<string, int> UsersLastSeen = new Dictionary<string, int>();
         private volatile Dictionary<string, int> Channels;
 
+        private Role DeveloperRole;
+        private Role AdministratorRole;
+        private Role ModeratorRole;
+        private Role VeteranRole;
+        
         private int RecountCount = 0;
         private Channel RecountChannel;
 
@@ -68,37 +74,33 @@ namespace Stats_o_Tron
 
                 Server = Client.Servers.First(s => s.Id == ServerID);
 
+                DeveloperRole = Server.FindRoles("Developers").FirstOrDefault();
+                AdministratorRole = Server.FindRoles("Administrators").FirstOrDefault();
+                ModeratorRole = Server.FindRoles("Moderators").FirstOrDefault();
+                VeteranRole = Server.FindRoles("Veterans").FirstOrDefault();
+
                 LogText("Loaded Stats-o-Tron bot to server " + Server.Name);
             });
         }
 
         private void LoadFiles()
         {
-            if (File.Exists(AppDirectory + "admins.list"))
-            {
-                string[] admins = File.ReadAllText(AppDirectory + "admins.list").Split(new string[1] { ";" }, StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (string admin in admins)
-                {
-                    Admins.Add(admin);
-                }
-
-                LogText("Loaded " + admins.Length + " admins");
-            }
-            else
-            {
-                File.Create(AppDirectory + "admins.list").Close();
-
-                LogText("Created empty admin list");
-            }
-            
             if (File.Exists(AppDirectory + "users.list"))
             {
                 string usersJson = File.ReadAllText(AppDirectory + "users.list");
 
-                Users = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
+                if (usersJson != string.Empty)
+                {
+                    Users = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
 
-                LogText("Loaded " + Users.Count + " users");
+                    LogText("Loaded " + Users.Count + " users");
+                }
+                else
+                {
+                    Users = new Dictionary<string, int>();
+
+                    LogText("Created empty user list");
+                }
             }
             else
             {
@@ -113,9 +115,18 @@ namespace Stats_o_Tron
             {
                 string usersfirstseenJson = File.ReadAllText(AppDirectory + "usersfirstseen.list");
 
-                UsersFirstSeen = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersfirstseenJson);
+                if (usersfirstseenJson != string.Empty)
+                {
+                    UsersFirstSeen = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersfirstseenJson);
 
-                LogText("Loaded " + UsersFirstSeen.Count + " usersfirstseen");
+                    LogText("Loaded " + UsersFirstSeen.Count + " usersfirstseen");
+                }
+                else
+                {
+                    UsersFirstSeen = new Dictionary<string, int>();
+
+                    LogText("Created empty user list");
+                }
             }
             else
             {
@@ -130,9 +141,18 @@ namespace Stats_o_Tron
             {
                 string usersJson = File.ReadAllText(AppDirectory + "channels.list");
 
-                Channels = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
+                if (usersJson != string.Empty)
+                {
+                    Channels = JsonConvert.DeserializeObject<Dictionary<string, int>>(usersJson);
 
-                LogText("Loaded " + Channels.Count + " channels");
+                    LogText("Loaded " + Channels.Count + " channels");
+                }
+                else
+                {
+                    Channels = new Dictionary<string, int>();
+
+                    LogText("Created empty channel list");
+                }
             }
             else
             {
@@ -148,14 +168,17 @@ namespace Stats_o_Tron
 
         private void ProcessMessageReceived(MessageEventArgs args)
         {
-            string fullUser = args.User.ToString();
             Channel channel = args.Channel;
+            User user = args.User;
+            string fullUser = user.ToString();
 
+            // Updating channel message count
             if (Channels.ContainsKey(channel.Name))
             {
                 Channels[channel.Name]++;
             }
 
+            // Updating user message count
             if (Users.ContainsKey(fullUser))
             {
                 Users[fullUser]++;
@@ -165,17 +188,30 @@ namespace Stats_o_Tron
                 Users.Add(fullUser, 1);
             }
 
+            // Updating user last activity
+            if (UsersLastSeen.ContainsKey(fullUser))
+            {
+                UsersLastSeen[fullUser] = DateTime.Now.ToEpoch();
+            }
+            else
+            {
+                UsersLastSeen.Add(fullUser, DateTime.Now.ToEpoch());
+            }
+
             if (args.Message.IsAuthor == false)
             {
-                if (args.Server?.Id == ServerID)
+                if (args.Server.Id == ServerID)
                 {
                     string fullText = args.Message.Text;
 
                     if (fullText.StartsWith("!"))
                     {
                         string[] commands = fullText.Split();
-                        bool isAdmin = Admins.Contains(fullUser);
-                        
+                        bool isDeveloper = user.HasRole(DeveloperRole);
+                        bool isAdmin = isDeveloper || user.HasRole(AdministratorRole);
+                        bool isModerator = isDeveloper || isAdmin || user.HasRole(ModeratorRole);
+                        bool isVeteran = isDeveloper || isAdmin || isModerator || user.HasRole(VeteranRole);
+
                         switch (commands[0].ToLower())
                         {
                             case "!hello":
@@ -187,8 +223,11 @@ namespace Stats_o_Tron
                                 break;
 
                             case "!ping":
-                                LogNormalCommand(channel, commands[0], fullUser);
-                                channel.SendMessage("`Latency : " + new Ping().Send("www.discordapp.com").RoundtripTime + " ms`");
+                                if (isModerator)
+                                {
+                                    LogNormalCommand(channel, commands[0], fullUser);
+                                    channel.SendMessage("`Latency : " + new Ping().Send("www.discordapp.com").RoundtripTime + " ms`");
+                                }
                                 break;
 
                             case "!help":
@@ -200,42 +239,21 @@ namespace Stats_o_Tron
                                 {
                                     LogNormalCommand(channel, commands[0], fullUser);
                                     channel.SendMessage("**· Normal Commands :**\n " +
-                                                        "```!hello - HELLO! (admin only)\n" +
-                                                        "!ping - Checks bot status\n" +
+                                                        "```!hello - HELLO! (admin+ only)\n" +
+                                                        "!ping - Checks bot status (mod+ only)\n" +
                                                         "!help - Shows this message```\n" +
-
-                                                        "**· Admin Commands: **\n" +
-                                                        "```!addadmin <fullname> - Adds an admin to the admin list (admin only)\n" +
-                                                        "!removeadmin <fullname> - Removes an admin from the admin list (admin only)\n" +
-                                                        "!adminlist - Shows the full list of admins```\n" +
 
                                                         "**· Stats Commands: **\n" +
                                                         "```!serverstats - Shows the stats of each channel\n" +
                                                         "!usertop - Shows the top 10 users\n" +
-                                                        "!usertop <quantity> - Shows the top x users (admin only)\n" +
-                                                        "!recount - Forces message recount (admin only)\n" +
-                                                        "!lastseen <fullname> - Checks last activity of someone (admin only)```\n");
+                                                        "!usertop <quantity> - Shows the top x users (admin+ only)\n" +
+                                                        "!userfirstseentop - Shows the top first seen 10 users\n" +
+                                                        "!userfirstseentop <quantity> - Shows the top first seen x users (admin+ only)\n" +
+                                                        "!firstseen <fullname> - Checks first activity of someone\n" +
+                                                        "!lastseen <fullname> - Checks last activity of someone\n" +
+                                                        "!recount - Forces message recount (dev+ only)\n" +
+                                                        "!save - Forces data save (dev+ only)```\n");
                                 }
-                                break;
-                            case "!addadmin":
-                                if (commands.Length > 1 && isAdmin)
-                                {
-                                    LogAdminCommand(channel, commands[0], fullUser);
-                                    AddAdminCommand(channel, commands[1]);
-                                }
-                                break;
-
-                            case "!removeadmin":
-                                if (commands.Length > 1 && isAdmin)
-                                {
-                                    LogAdminCommand(channel, commands[0], fullUser);
-                                    RemoveAdminCommand(channel, commands[1]);
-                                }
-                                break;
-
-                            case "!adminlist":
-                                LogNormalCommand(channel, commands[0], fullUser);
-                                ShowAdminListCommand(channel);
                                 break;
 
                             case "!serverstats":
@@ -290,7 +308,7 @@ namespace Stats_o_Tron
                                 break;
 
                             case "!recount":
-                                if (isAdmin)
+                                if (isDeveloper)
                                 {
                                     LogAdminCommand(channel, commands[0], fullUser);
                                     RecountCommand(channel);
@@ -300,21 +318,21 @@ namespace Stats_o_Tron
                             case "!firstseen":
                                 if (commands.Length > 1)
                                 {
-                                    LogAdminCommand(channel, commands[0], fullUser);
+                                    LogNormalCommand(channel, commands[0], fullUser);
                                     FirstSeenCommand(channel, commands[1]);
                                 }
                                 break;
 
                             case "!lastseen":
-                                if (commands.Length > 1 && isAdmin)
+                                if (commands.Length > 1)
                                 {
-                                    LogAdminCommand(channel, commands[0], fullUser);
+                                    LogNormalCommand(channel, commands[0], fullUser);
                                     LastSeenCommand(channel, commands[1]);
                                 }
                                 break;
 
                             case "!save":
-                                if (isAdmin)
+                                if (isDeveloper)
                                 {
                                     LogAdminCommand(channel, commands[0], fullUser);
                                     SaveCommand(channel);
@@ -341,86 +359,6 @@ namespace Stats_o_Tron
                 Channels[channel.Name]--;
             }
         }
-
-        #region Admin Related Methods
-
-        private void ShowAdminListCommand(Channel channel)
-        {
-            if (Admins.Count > 0)
-            {
-                string adminList = "**Showing current admin list **(" + DateTime.Today.ToShortDateString() + ")** :**\n\n```";
-
-                for (int i = 0; i < Admins.Count; i++)
-                {
-                    adminList += "· " + Admins[i] + "\n";
-                }
-
-                channel.SendMessage(adminList + "```");
-            }
-            else
-            {
-                channel.SendMessage("**Admin list is empty.**");
-            }
-        }
-
-        private void AddAdminCommand(Channel channel, string admin)
-        {
-            if (Server.Users.Any(u => u.ToString() == admin))
-            {
-                if (Admins.Contains(admin))
-                {
-                    channel.SendMessage("@" + admin + "** is already an admin.**");
-                }
-                else
-                {
-                    AddAdmin(admin);
-                    channel.SendMessage("@" + admin + "** was added to the admin list.**");
-                }
-            }
-            else
-            {
-                channel.SendMessage(admin + "** was not found in the server.**");
-            }
-        }
-
-        private void RemoveAdminCommand(Channel channel, string admin)
-        {
-            if (Admins.Contains(admin))
-            {
-                RemoveAdmin(admin);
-                channel.SendMessage(admin + "** was removed from admins.**");
-            }
-            else
-            {
-                channel.SendMessage(admin + "** is not an admin.**");
-            }
-        }
-
-        private void AddAdmin(string admin)
-        {
-            Admins.Add(admin);
-            SaveAdminFile();
-        }
-
-        private void RemoveAdmin(string admin)
-        {
-            Admins.Remove(admin);
-            SaveAdminFile();
-        }
-
-        private void SaveAdminFile()
-        {
-            string adminString = string.Join(";", Admins.ToArray());
-
-            if (adminString.StartsWith(";"))
-            {
-                adminString = adminString.Substring(1);
-            }
-
-            File.WriteAllText(AppDirectory + "admins.list", adminString);
-        }
-
-        #endregion
 
         #region Stats Related Methods
 
@@ -455,42 +393,45 @@ namespace Stats_o_Tron
 
             int messageCount = 0;
             
-            ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
+			ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
             bool isDone = false;
 
             while (isDone == false)
             {
                 Message[] downloadedMessages = await channel.DownloadMessages(100, previousID, Relative.Before, false);
-                
-                previousID = downloadedMessages[downloadedMessages.Length - 1].Id;
 
-                foreach (Message message in downloadedMessages)
+                if (downloadedMessages.Length > 0)
                 {
-                    if (message.User != null)
+                    previousID = downloadedMessages[downloadedMessages.Length - 1].Id;
+
+                    foreach (Message message in downloadedMessages)
                     {
-                        string userName = message.User.ToString();
-
-                        if (Users.ContainsKey(userName))
+                        if (message.User != null)
                         {
-                            Users[userName]++;
-                            int lastEpoch = UsersFirstSeen[userName];
-                            int thisEpoch = message.Timestamp.ToEpoch();
+                            string userName = message.User.ToString();
 
-                            UsersFirstSeen[userName] = Math.Min(lastEpoch, thisEpoch);
-                        }
-                        else
-                        {
-                            Users.Add(userName, 1);
-                            UsersFirstSeen.Add(userName, message.Timestamp.ToEpoch());
+                            if (Users.ContainsKey(userName))
+                            {
+                                Users[userName]++;
+                                int lastEpoch = UsersFirstSeen[userName];
+                                int thisEpoch = message.Timestamp.ToEpoch();
+
+                                UsersFirstSeen[userName] = Math.Min(lastEpoch, thisEpoch);
+                            }
+                            else
+                            {
+                                Users.Add(userName, 1);
+                                UsersFirstSeen.Add(userName, message.Timestamp.ToEpoch());
+                            }
                         }
                     }
-                }
 
-                messageCount += downloadedMessages.Length;
+                    messageCount += downloadedMessages.Length;
 
-                if (downloadedMessages.Length < 100)
-                {
-                    isDone = true;
+                    if (downloadedMessages.Length < 100)
+                    {
+                        isDone = true;
+                    }
                 }
             }
 
@@ -575,22 +516,13 @@ namespace Stats_o_Tron
 
         private void LastSeenCommand(Channel channel, string fullUser)
         {
-            User user = Server.FindUsers(fullUser).FirstOrDefault();
-
-            if (user != null)
+            if (UsersLastSeen.ContainsKey(fullUser))
             {
-                if (user.LastOnlineAt != null && user.LastActivityAt != null)
-                {
-                    channel.SendMessage(fullUser + " was last seen online at " + user.LastOnlineAt + " and his last activity was at " + user.LastActivityAt);
-                }
-                else
-                {
-                    channel.SendMessage(fullUser + " activity was not found");
-                }
+                channel.SendMessage(fullUser + " was last activity was at " + UsersLastSeen[fullUser].FromEpoch());
             }
             else
             {
-                channel.SendMessage(fullUser + " was not found");
+                channel.SendMessage(fullUser + " activity was not found");
             }
         }
 
