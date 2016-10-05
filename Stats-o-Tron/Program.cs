@@ -363,7 +363,9 @@ namespace Stats_o_Tron
 
         public async void RecountCommand(Channel channel)
         {
-            await channel.SendMessage("**Updating server stats...**");
+            IEnumerable<string> serverNames = Server.TextChannels.Select(c => c.Name);
+
+            await channel.SendMessage("**Updating server stats...** (" + Server.TextChannels.Count() + " => " + string.Join(", ", serverNames) + ")");
 
             Users.Clear();
             Channels.Clear();
