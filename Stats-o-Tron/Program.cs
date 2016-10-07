@@ -452,6 +452,10 @@ namespace Stats_o_Tron
             if (RecountCount == Server.TextChannels.Count())
             {
                 ShowServerStatsCommand(RecountChannel);
+                
+                SaveChannelStatsFile();
+                SaveUserStatsFile();
+                SaveUserFirstSeenFile();
 
                 RecountCount = 0;
                 RecountChannel = null;
