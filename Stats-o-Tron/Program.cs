@@ -385,64 +385,80 @@ namespace Stats_o_Tron
 
         private async void DownloadChannelInfo(object args)
         {
-            object[] argsArray = (object[]) args;
-            Channel channel = (Channel) argsArray[0];
-            Channel messageChannel = (Channel) argsArray[1];
+            object[] argsArray = (object[])args;
+            Channel channel = (Channel)argsArray[0];
+            Channel messageChannel = (Channel)argsArray[1];
 
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            int messageCount = 0;
-            
-			ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
-            bool isDone = false;
-
-            while (isDone == false)
+            try
             {
-                Message[] downloadedMessages = await channel.DownloadMessages(100, previousID, Relative.Before, false);
+                Stopwatch timer = new Stopwatch();
+                timer.Start();
 
-                if (downloadedMessages.Length > 0)
+                int messageCount = 0;
+
+                ulong? previousID = channel.Messages.FirstOrDefault()?.Id;
+                bool isDone = false;
+
+                Channels.Add(channel.Name, 0);
+
+                while (isDone == false)
                 {
-                    previousID = downloadedMessages[downloadedMessages.Length - 1].Id;
+                    Message[] downloadedMessages = await channel.DownloadMessages(100, previousID, Relative.Before, false);
 
-                    foreach (Message message in downloadedMessages)
+                    if (downloadedMessages.Length > 0)
                     {
-                        if (message.User != null)
+                        previousID = downloadedMessages[downloadedMessages.Length - 1].Id;
+
+                        foreach (Message message in downloadedMessages)
                         {
-                            string userName = message.User.ToString();
-
-                            if (Users.ContainsKey(userName))
+                            if (message.User != null)
                             {
-                                Users[userName]++;
-                                int lastEpoch = UsersFirstSeen[userName];
-                                int thisEpoch = message.Timestamp.ToEpoch();
+                                string userName = message.User.ToString();
 
-                                UsersFirstSeen[userName] = Math.Min(lastEpoch, thisEpoch);
-                            }
-                            else
-                            {
-                                Users.Add(userName, 1);
-                                UsersFirstSeen.Add(userName, message.Timestamp.ToEpoch());
+                                if (Users.ContainsKey(userName))
+                                {
+                                    Users[userName]++;
+                                }
+                                else
+                                {
+                                    Users.Add(userName, 1);
+                                }
+
+                                if (UsersFirstSeen.ContainsKey(userName))
+                                {
+                                    int lastEpoch = UsersFirstSeen[userName];
+                                    int thisEpoch = message.Timestamp.ToEpoch();
+
+                                    UsersFirstSeen[userName] = Math.Min(lastEpoch, thisEpoch);
+                                }
+                                else
+                                {
+                                    UsersFirstSeen.Add(userName, message.Timestamp.ToEpoch());
+                                }
                             }
                         }
-                    }
 
-                    messageCount += downloadedMessages.Length;
+                        messageCount += downloadedMessages.Length;
 
-                    if (downloadedMessages.Length < 100)
-                    {
-                        isDone = true;
+                        if (downloadedMessages.Length < 100)
+                        {
+                            isDone = true;
+                        }
                     }
                 }
+
+                Channels[channel.Name] = messageCount;
+
+                timer.Stop();
+
+                await messageChannel.SendMessage("**Updated** #" + channel.Name + "** channel info in **" + Math.Round(timer.ElapsedMilliseconds / 1000f, 4) + " s");
+
+                RecountCheckpoint();
             }
-
-            Channels.Add(channel.Name, messageCount);
-
-            timer.Stop();
-
-            await messageChannel.SendMessage("**Updated** #" + channel.Name + "** channel info in **" + Math.Round(timer.ElapsedMilliseconds / 1000f, 4) + " s");
-
-            RecountCheckpoint();
+            catch (Exception ex)
+            {
+                await messageChannel.SendMessage("**ERROR :** " + ex.Message + " while updating #" + channel.Name);
+            }
         }
 
         private void RecountCheckpoint()
