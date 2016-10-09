@@ -25,13 +25,13 @@ namespace Stats_o_Tron
 
         #endregion
 
-        private const ulong ServerID = 194099156988461056;
 
         private DiscordClient Client;
         private Server Server;
 
         private string AppDirectory;
-        
+        private const ulong ServerID = 194099156988461056;
+
         private volatile Dictionary<string, int> Users;
         private volatile Dictionary<string, int> UsersFirstSeen;
         private volatile Dictionary<string, int> UsersLastSeen = new Dictionary<string, int>();
@@ -42,7 +42,7 @@ namespace Stats_o_Tron
         private Role ModeratorRole;
         private Role VeteranRole;
         
-        private int RecountCount = 0;
+        private int RecountCount;
         private Channel RecountChannel;
 
         public void Start()
