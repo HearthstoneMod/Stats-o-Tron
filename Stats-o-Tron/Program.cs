@@ -124,7 +124,7 @@ namespace Stats_o_Tron
                 {
                     UsersFirstSeen = new Dictionary<string, int>();
 
-                    LogText("Created empty user list");
+                    LogText("Created empty usersfirstseen list");
                 }
             }
             else
