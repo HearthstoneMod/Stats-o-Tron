@@ -38,7 +38,7 @@ namespace Stats_o_Tron
         private volatile Dictionary<string, int> Channels;
 
         private Role DeveloperRole;
-        private Role AdministratorRole;
+        //private Role AdministratorRole;
         private Role ModeratorRole;
         private Role VeteranRole;
         
@@ -74,7 +74,7 @@ namespace Stats_o_Tron
                 Server = Client.Servers.First(s => s.Id == ServerID);
 
                 DeveloperRole = Server.FindRoles("Developers").FirstOrDefault();
-                AdministratorRole = Server.FindRoles("Administrators").FirstOrDefault();
+                //AdministratorRole = Server.FindRoles("Administrators").FirstOrDefault();
                 ModeratorRole = Server.FindRoles("Moderators").FirstOrDefault();
                 VeteranRole = Server.FindRoles("Veterans").FirstOrDefault();
 
@@ -207,14 +207,14 @@ namespace Stats_o_Tron
                     {
                         string[] commands = fullText.Split();
                         bool isDeveloper = user.HasRole(DeveloperRole);
-                        bool isAdmin = isDeveloper || user.HasRole(AdministratorRole);
-                        bool isModerator = isDeveloper || isAdmin || user.HasRole(ModeratorRole);
-                        bool isVeteran = isDeveloper || isAdmin || isModerator || user.HasRole(VeteranRole);
+                        //bool isAdmin = isDeveloper || user.HasRole(AdministratorRole);
+                        bool isModerator = isDeveloper || user.HasRole(ModeratorRole);
+                        bool isVeteran = isDeveloper || isModerator || user.HasRole(VeteranRole);
 
                         switch (commands[0].ToLower())
                         {
                             case "!hello":
-                                if (isAdmin)
+                                if (isModerator)
                                 {
                                     LogAdminCommand(channel, commands[0], fullUser);
                                     channel.SendTTSMessage("***HELLO! HELLO! HELLO!***");
@@ -238,16 +238,16 @@ namespace Stats_o_Tron
                                 {
                                     LogNormalCommand(channel, commands[0], fullUser);
                                     channel.SendMessage("**· Normal Commands :**\n " +
-                                                        "```!hello - HELLO! (admin+ only)\n" +
+                                                        "```!hello - HELLO! (mod+ only)\n" +
                                                         "!ping - Checks bot status (mod+ only)\n" +
                                                         "!help - Shows this message```\n" +
 
                                                         "**· Stats Commands: **\n" +
                                                         "```!serverstats - Shows the stats of each channel\n" +
                                                         "!usertop - Shows the top 10 users\n" +
-                                                        "!usertop <quantity> - Shows the top x users (admin+ only)\n" +
+                                                        "!usertop <quantity> - Shows the top x users (mod+ only)\n" +
                                                         "!userfirstseentop - Shows the top first seen 10 users\n" +
-                                                        "!userfirstseentop <quantity> - Shows the top first seen x users (admin+ only)\n" +
+                                                        "!userfirstseentop <quantity> - Shows the top first seen x users (mod+ only)\n" +
                                                         "!firstseen <fullname> - Checks first activity of someone\n" +
                                                         "!lastseen <fullname> - Checks last activity of someone\n" +
                                                         "!recount - Forces message recount (dev+ only)\n" +
@@ -262,7 +262,7 @@ namespace Stats_o_Tron
 
                             case "!usertop":
                                 LogNormalCommand(channel, commands[0], fullUser);
-                                if (commands.Length > 1 && isAdmin)
+                                if (commands.Length > 1 && isModerator)
                                 {
                                     int quantity;
 
@@ -285,7 +285,7 @@ namespace Stats_o_Tron
 
                             case "!userfirstseentop":
                                 LogNormalCommand(channel, commands[0], fullUser);
-                                if (commands.Length > 1 && isAdmin)
+                                if (commands.Length > 1 && isModerator)
                                 {
                                     int quantity;
 
